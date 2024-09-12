@@ -1,0 +1,8 @@
+streamlit
+datasets
+langchain_openai
+langchain_core 
+angchain_community
+langchain_pinecone
+langchain
+docarray
