@@ -111,8 +111,9 @@ def initialize_model(pdf):
         st.session_state.prompt = prompt
         st.session_state.parser = parser
         st.session_state.pinecone = pinecone
+        st.session_state.documents = documents
     
-    return bool(model and pinecone and documents)
+    return bool(model and pinecone and documents and embeddings)
 
 def model_retrieval(chat_history, retrieval, prompt, model, parser, language="English"):
     context = "\n".join([f"{message['role']}: {message['content']}" for message in chat_history])
@@ -134,10 +135,10 @@ def model_retrieval(chat_history, retrieval, prompt, model, parser, language="En
 
     return response
 
-def summarize(model, documents):
+""" def summarize(model, documents):
     chain = load_summarize_chain(model, chain_type="stuff")
     result = chain.invoke(documents)
-    return result
+    return result """
 
 def main():
     st.title("PDF Chatbot")
@@ -150,13 +151,42 @@ def main():
     
     user_API_key, pdf_url, pdf_file, user_language = sideboard()
 
-    if pdf_url != None:
+    if pdf_url:
         ind_init = initialize_model(pdf_url)
-    elif pdf_file != "":
+    elif pdf_file:
         ind_init = initialize_model(pdf_file)
-    st.markdown('---',unsafe_allow_html=True)
-    st.markdown(ind_init,unsafe_allow_html=True)
-    st.markdown('---',unsafe_allow_html=True)
+    else:
+        ind_init = False
+    
+    if ind_init:
+        retrieval = st.session_state.pinecone
+        prompt = st.session_state.prompt
+        model = st.session_state.model
+        parser = st.session_state.parser
+        documents = st.session_state.documents
+        
+    st.markdown("<b>Chatbot</b> :robot_face:", unsafe_allow_html=True)
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if user_question := st.chat_input("How can I help you ?"):
+        st.session_state.messages.append({"role": "user", "content": user_question})
+        with st.chat_message("user"):
+            st.markdown(user_question)
+
+        if ind_init:
+            response = model_retrieval(st.session_state.messages, retrieval, prompt, model, parser, user_language)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            with st.chat_message("assistant"):
+                st.markdown(response)
+        else:
+            with st.chat_message("assistant"):
+                st.markdown("Model not initialized or pdf missing!")
+
     
 
 
