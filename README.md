@@ -1,5 +1,6 @@
 # PDF-chat
 This Streamlit application uses LangChain 🦜 and OpenAI 🤖 to read and summarize PDFs
+
 Users can interact with a chatbot and can translate the responses into multiple languages (🇬🇧 🇪🇸 🇫🇷 🇩🇪 🇸🇦)
 
 ---
