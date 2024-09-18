@@ -6,3 +6,4 @@ langchain_pinecone
 langchain
 docarray
 pypdf2
+pypdf
