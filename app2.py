@@ -62,14 +62,18 @@ def read_split_pdf(path):
     
     return pages
 
+def summarize(model, documents):
+    chain = load_summarize_chain(model, chain_type="stuff")
+    result = chain.invoke(documents)
+    return result
 
 @st.cache_resource
-def initialize_model(pdf):
+def initialize_model(pdf, OPENAI_API_KEY):
     # Check if the model is already loaded in session state
     if "model" not in st.session_state:
         # Initialize Model
         model_load_state = st.text('Loading model...')
-        OPENAI_API_KEY = st.secrets['OPENAI_API_KEY']
+        # OPENAI_API_KEY = st.secrets['OPENAI_API_KEY']
         model = ChatOpenAI(openai_api_key=OPENAI_API_KEY,
                            model="gpt-3.5-turbo",
                            temperature=0.2)  # Use selected temperature
@@ -135,10 +139,7 @@ def model_retrieval(chat_history, retrieval, prompt, model, parser, language="En
 
     return response
 
-""" def summarize(model, documents):
-    chain = load_summarize_chain(model, chain_type="stuff")
-    result = chain.invoke(documents)
-    return result """
+
 
 def main():
     st.title("PDF Chatbot")
@@ -151,10 +152,12 @@ def main():
     
     user_API_key, pdf_url, pdf_file, user_language = sideboard()
 
-    if pdf_url:
-        ind_init = initialize_model(pdf_url)
+    if not user_API_key:
+        ind_init = False
+    elif pdf_url:
+        ind_init = initialize_model(pdf_url, user_API_key)
     elif pdf_file:
-        ind_init = initialize_model(pdf_file)
+        ind_init = initialize_model(pdf_file, user_API_key)
     else:
         ind_init = False
     
@@ -164,31 +167,38 @@ def main():
         model = st.session_state.model
         parser = st.session_state.parser
         documents = st.session_state.documents
-        
-    st.markdown("<b>Chatbot</b> :robot_face:", unsafe_allow_html=True)
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    
+    tab1, tab2 = st.tabs(['Chat', 'Summary'])
+    with tab1:
+        st.markdown("<b>Chatbot</b> :robot_face:", unsafe_allow_html=True)
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-    if user_question := st.chat_input("How can I help you ?"):
-        st.session_state.messages.append({"role": "user", "content": user_question})
-        with st.chat_message("user"):
-            st.markdown(user_question)
+        if user_question := st.chat_input("How can I help you ?"):
+            st.session_state.messages.append({"role": "user", "content": user_question})
+            with st.chat_message("user"):
+                st.markdown(user_question)
 
+            if ind_init:
+                response = model_retrieval(st.session_state.messages, retrieval, prompt, model, parser, user_language)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                with st.chat_message("assistant"):
+                    st.markdown(response)
+            else:
+                with st.chat_message("assistant"):
+                    st.markdown("Model not initialized or pdf missing! \n Provide your OPENAI key and a pdf file", unsafe_allow_html=True)
+    with tab2:
         if ind_init:
-            response = model_retrieval(st.session_state.messages, retrieval, prompt, model, parser, user_language)
-            st.session_state.messages.append({"role": "assistant", "content": response})
-            with st.chat_message("assistant"):
-                st.markdown(response)
-        else:
-            with st.chat_message("assistant"):
-                st.markdown("Model not initialized or pdf missing!")
+            st.markdown("<b>Summary</b> :receipt:", unsafe_allow_html=True)
+            st.markdown(summarize(model, documents[:3])['output_text'], unsafe_allow_html=True)
 
     
 
 
 if __name__ == "__main__":
     main()
+    
